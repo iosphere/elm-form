@@ -8,11 +8,11 @@ import Form.Validate as Validate exposing (..)
 
 type Msg
     = NoOp
-    | FormMsg Form.Msg
+    | FormMsg (Form.Msg String)
 
 
 type alias Model =
-    { form : Form CustomError User
+    { form : Form String CustomError User
     , userMaybe : Maybe User
     }
 
@@ -54,7 +54,7 @@ type alias Todo =
     }
 
 
-initialFields : List ( String, Field )
+initialFields : List ( String, Field String )
 initialFields =
     [ ( "name", Field.string "hey" )
     , ( "profile"
@@ -82,7 +82,7 @@ superpowers =
     [ "flying", "invisible" ]
 
 
-validate : Validation CustomError User
+validate : Validation String CustomError User
 validate =
     map6
         User
@@ -94,7 +94,7 @@ validate =
         (field "todos" (list validateTodo))
 
 
-validateProfile : Validation CustomError Profile
+validateProfile : Validation String CustomError Profile
 validateProfile =
     succeed Profile
         |> andMap
@@ -111,7 +111,7 @@ validateProfile =
         |> andMap (field "bio" (string |> defaultValue ""))
 
 
-validateSuperpower : Validation CustomError Superpower
+validateSuperpower : Validation String CustomError Superpower
 validateSuperpower =
     customValidation
         string
@@ -128,7 +128,7 @@ validateSuperpower =
         )
 
 
-validateTodo : Validation CustomError Todo
+validateTodo : Validation String CustomError Todo
 validateTodo =
     map2 Todo
         (field "done" bool)
@@ -139,7 +139,7 @@ validateTodo =
 -- eq. to: int `andThen` (minInt 0)
 
 
-naturalInt : Validation CustomError Int
+naturalInt : Validation String CustomError Int
 naturalInt =
     customValidation
         int
@@ -151,7 +151,7 @@ naturalInt =
         )
 
 
-asyncCheck : Bool -> String -> Validation CustomError String
+asyncCheck : Bool -> String -> Validation String CustomError String
 asyncCheck serverIsOk s =
     if serverIsOk then
         succeed s

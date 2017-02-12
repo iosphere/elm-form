@@ -1,4 +1,4 @@
-module Form exposing (Msg(..), InputType(..), Form, FieldState, initial, update, getFieldAsString, getFieldAsBool, getListIndexes, getFocus, getErrors, isSubmitted, getOutput, getChangedFields)
+module Form exposing (Msg(..), InputType(..), Form, FieldState, initial, update, getFieldAsString, getFieldAsBool, getListIndexes, getFocus, isSubmitted, getOutput, getChangedFields)
 
 {-| Simple forms made easy: A Dict implementation of the core `Json.Decode` API,
 with state lifecycle and input helpers for the views.
@@ -13,7 +13,7 @@ with state lifecycle and input helpers for the views.
 @docs getFieldAsString, getFieldAsBool, getListIndexes
 
 # Global state accessors
-@docs getFocus, isSubmitted, getErrors, getOutput, getChangedFields
+@docs getFocus, isSubmitted,  getOutput, getChangedFields
 -}
 
 import Result
@@ -29,26 +29,26 @@ import Form.Tree as Tree
  * `customError` - a custom error type to extend built-in errors (set to `()` if you don't need it)
  * `output` - the type of the validation output.
 -}
-type Form customError output
-    = F (Model customError output)
+type Form comparable customError output
+    = F (Model comparable customError output)
 
 
 {-| Private
 -}
-type alias Model customError output =
-    { fields : Field
-    , focus : Maybe String
-    , dirtyFields : Set String
-    , changedFields : Set String
+type alias Model comparable customError output =
+    { fields : Field comparable
+    , focus : Maybe (List comparable)
+    , dirtyFields : Set (List comparable)
+    , changedFields : Set (List comparable)
     , isSubmitted : Bool
     , output : Maybe output
-    , errors : Error customError
+    , errors : Error comparable customError
     }
 
 
 {-| Initial form state. See `Form.Field` for initial fields, and `Form.Validate` for validation.
 -}
-initial : List ( String, Field ) -> Validation e output -> Form e output
+initial : List ( comparable, Field comparable ) -> Validation comparable e output -> Form comparable e output
 initial initialFields validation =
     let
         model =
@@ -76,8 +76,8 @@ can be retrived with `Form.getFieldAsString` or `Form.getFieldAsBool`.
  * `isChanged` - if the field value has changed since last init/reset
  * `hasFocus` - if the field is currently focused
 -}
-type alias FieldState e a =
-    { path : String
+type alias FieldState comparable e a =
+    { path : List comparable
     , value : Maybe a
     , error : Maybe (ErrorValue e)
     , liveError : Maybe (ErrorValue e)
@@ -89,19 +89,19 @@ type alias FieldState e a =
 
 {-| Get field state at path, with value as a `String`.
 -}
-getFieldAsString : String -> Form e o -> FieldState e String
+getFieldAsString : List comparable -> Form comparable e o -> FieldState comparable e String
 getFieldAsString =
     getField getStringAt
 
 
 {-| Get field state at path, with value as a `Bool`.
 -}
-getFieldAsBool : String -> Form e o -> FieldState e Bool
+getFieldAsBool : List comparable -> Form comparable e o -> FieldState comparable e Bool
 getFieldAsBool =
     getField getBoolAt
 
 
-getField : (String -> Form e o -> Maybe a) -> String -> Form e o -> FieldState e a
+getField : (List comparable -> Form comparable e o -> Maybe a) -> comparable -> Form comparable e o -> FieldState comparable e a
 getField getValue path form =
     { path = path
     , value = getValue path form
@@ -115,7 +115,7 @@ getField getValue path form =
 
 {-| return a list of indexes so one can build qualified names of fields in list.
 -}
-getListIndexes : String -> Form e o -> List Int
+getListIndexes : comparable -> Form comparable e o -> List Int
 getListIndexes path (F model) =
     let
         length =
@@ -128,16 +128,16 @@ getListIndexes path (F model) =
 
 {-| Form messages for `update`.
 -}
-type Msg
+type Msg comparable
     = NoOp
-    | Focus String
-    | Blur String
-    | Input String InputType FieldValue
-    | Append String
-    | RemoveItem String Int
+    | Focus (List comparable)
+    | Blur (List comparable)
+    | Input (List comparable) InputType FieldValue
+    | Append (List comparable)
+    | RemoveItem (List comparable) Int
     | Submit
     | Validate
-    | Reset (List ( String, Field ))
+    | Reset (List ( comparable, Field comparable ))
 
 
 {-| Input types to determine live validation behaviour.
@@ -152,7 +152,7 @@ type InputType
 
 {-| Update form state with the given message
 -}
-update : Validation e output -> Msg -> Form e output -> Form e output
+update : Validation comparable e output -> Msg comparable -> Form comparable e output -> Form comparable e output
 update validation msg (F model) =
     case msg of
         NoOp ->
@@ -266,7 +266,7 @@ update validation msg (F model) =
                 F (updateValidate validation newModel)
 
 
-updateValidate : Validation e o -> Model e o -> Model e o
+updateValidate : Validation comparable e o -> Model comparable e o -> Model comparable e o
 updateValidate validation model =
     case validation model.fields of
         Ok output ->
@@ -284,53 +284,46 @@ updateValidate validation model =
             }
 
 
-getFieldAt : String -> Model e o -> Maybe Field
+getFieldAt : List comparable -> Model comparable e o -> Maybe (Field comparable)
 getFieldAt qualifiedName model =
     Tree.getAtPath qualifiedName model.fields
 
 
-getStringAt : String -> Form e o -> Maybe String
+getStringAt : List comparable -> Form comparable e o -> Maybe String
 getStringAt name (F model) =
     getFieldAt name model |> Maybe.andThen Field.asString
 
 
-getBoolAt : String -> Form e o -> Maybe Bool
+getBoolAt : List comparable -> Form comparable e o -> Maybe Bool
 getBoolAt name (F model) =
     getFieldAt name model |> Maybe.andThen Field.asBool
 
 
-setFieldAt : String -> Field -> Model e o -> Field
+setFieldAt : List comparable -> Field comparable -> Model comparable e o -> Field comparable
 setFieldAt path field model =
     Tree.setAtPath path field model.fields
 
 
 {-| Get form output, in case of validation success.
 -}
-getOutput : Form e o -> Maybe o
+getOutput : Form comparable e o -> Maybe o
 getOutput (F model) =
     model.output
 
 
 {-| Get form submission state. Useful to show errors on unchanged fields.
 -}
-isSubmitted : Form e o -> Bool
+isSubmitted : Form comparable e o -> Bool
 isSubmitted (F model) =
     model.isSubmitted
 
 
-{-| Get list of errors on qualified paths.
--}
-getErrors : Form e o -> List ( String, Error.ErrorValue e )
-getErrors (F model) =
-    Tree.valuesWithPath model.errors
-
-
-getErrorAt : String -> Form e o -> Maybe (ErrorValue e)
+getErrorAt : List comparable -> Form comparable e o -> Maybe (ErrorValue e)
 getErrorAt path (F model) =
     Tree.getAtPath path model.errors |> Maybe.andThen Tree.asValue
 
 
-getLiveErrorAt : String -> Form e o -> Maybe (ErrorValue e)
+getLiveErrorAt : comparable -> Form comparable e o -> Maybe (ErrorValue e)
 getLiveErrorAt name form =
     if isSubmitted form || (isChangedAt name form && not (isDirtyAt name form)) then
         getErrorAt name form
@@ -338,25 +331,25 @@ getLiveErrorAt name form =
         Nothing
 
 
-isChangedAt : String -> Form e o -> Bool
+isChangedAt : comparable -> Form comparable e o -> Bool
 isChangedAt qualifiedName (F model) =
     Set.member qualifiedName model.changedFields
 
 
-isDirtyAt : String -> Form e o -> Bool
+isDirtyAt : comparable -> Form comparable e o -> Bool
 isDirtyAt qualifiedName (F model) =
     Set.member qualifiedName model.dirtyFields
 
 
 {-| Return currently focused field, if any.
 -}
-getFocus : Form e o -> Maybe String
+getFocus : Form comparable e o -> Maybe comparable
 getFocus (F model) =
     model.focus
 
 
 {-| Get set of changed fields.
 -}
-getChangedFields : Form e o -> Set String
+getChangedFields : Form comparable e o -> Set comparable
 getChangedFields (F model) =
     model.changedFields

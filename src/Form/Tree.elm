@@ -1,4 +1,4 @@
-module Form.Tree exposing (Tree(..), getAtPath, getAtName, getAtIndex, valuesWithPath, group, asList, asValue, setAtPath)
+module Form.Tree exposing (Tree(..), getAtPath, getAtName, group, asList, asValue, setAtPath)
 
 {-| Data structures
 
@@ -6,48 +6,37 @@ module Form.Tree exposing (Tree(..), getAtPath, getAtName, getAtIndex, valuesWit
 @docs Tree, group
 
 # Readers
-@docs getAtPath, getAtName, getAtIndex, asList, asValue, valuesWithPath
+@docs getAtPath, getAtName,  asList, asValue
 
 # Writers
 @docs setAtPath
 -}
 
 import Dict exposing (Dict)
-import String
 
 
 {-| Field values and errors are stored as trees.
 -}
-type Tree value
-    = Group (Dict String (Tree value))
-    | List (List (Tree value))
+type Tree comparable value
+    = Group (Dict comparable (Tree comparable value))
+    | List (List (Tree comparable value))
     | Value value
-
-
-type Fragment
-    = StringFragment String
-    | IntFragment Int
 
 
 {-| Get node at given path
 -}
-getAtPath : String -> Tree value -> Maybe (Tree value)
+getAtPath : List comparable -> Tree comparable value -> Maybe (Tree comparable value)
 getAtPath path tree =
     let
         walkPath fragment maybeField =
-            case fragment of
-                IntFragment index ->
-                    maybeField |> Maybe.andThen (getAtIndex index)
-
-                StringFragment name ->
-                    maybeField |> Maybe.andThen (getAtName name)
+            maybeField |> Maybe.andThen (getAtName fragment)
     in
-        List.foldl walkPath (Just tree) (extractFragments path)
+        List.foldl walkPath (Just tree) path
 
 
 {-| Get node at name, if group
 -}
-getAtName : String -> Tree value -> Maybe (Tree value)
+getAtName : comparable -> Tree comparable value -> Maybe (Tree comparable value)
 getAtName name value =
     case value of
         Group group ->
@@ -57,44 +46,9 @@ getAtName name value =
             Nothing
 
 
-{-| Get node at index, if list of nodes.
--}
-getAtIndex : Int -> Tree value -> Maybe (Tree value)
-getAtIndex index value =
-    asList value
-        |> List.drop index
-        |> List.head
-
-
-{-| Get list of errors on qualified paths.
--}
-valuesWithPath : Tree value -> List ( String, value )
-valuesWithPath tree =
-    let
-        mapGroupItem path ( name, error ) =
-            walkTree (path ++ [ name ]) error
-
-        walkTree path value =
-            case value of
-                Group group ->
-                    List.concatMap
-                        (mapGroupItem path)
-                        (Dict.toList group)
-
-                List items ->
-                    List.concatMap
-                        (mapGroupItem path)
-                        (List.indexedMap (\index item -> ( toString index, item )) items)
-
-                Value value ->
-                    [ ( String.join "." path, value ) ]
-    in
-        walkTree [] tree
-
-
 {-| Extract value, if possible.
 -}
-asValue : Tree value -> Maybe value
+asValue : Tree comparable value -> Maybe value
 asValue node =
     case node of
         Value value ->
@@ -106,7 +60,7 @@ asValue node =
 
 {-| Get field as a list of fields
 -}
-asList : Tree value -> List (Tree value)
+asList : Tree comparable value -> List (Tree comparable value)
 asList value =
     case value of
         List items ->
@@ -118,55 +72,27 @@ asList value =
 
 {-| Helper to create a group value.
 -}
-group : List ( String, Tree value ) -> Tree value
+group : List ( comparable, Tree comparable value ) -> Tree comparable value
 group items =
     items
         |> Dict.fromList
         |> Group
 
 
-extractFragments : String -> List Fragment
-extractFragments name =
-    String.split "." name
-        |> List.map toFragment
-
-
-toFragment : String -> Fragment
-toFragment s =
-    case String.toInt s of
-        Ok i ->
-            IntFragment i
-
-        Err _ ->
-            StringFragment s
-
-
 {-| Set node in tree at given path.
 -}
-setAtPath : String -> Tree value -> Tree value -> Tree value
+setAtPath : List comparable -> Tree comparable value -> Tree comparable value -> Tree comparable value
 setAtPath path node tree =
-    recursiveSet (extractFragments path) node tree
-
-
-recursiveSet : List Fragment -> Tree value -> Tree value -> Tree value
-recursiveSet fragments node tree =
-    case fragments of
+    case path of
         head :: rest ->
-            case head of
-                IntFragment index ->
-                    asList tree
-                        |> updateListAtIndex index (recursiveSet rest node)
-                        |> List
+            let
+                target =
+                    getAtName head tree |> Maybe.withDefault (Group Dict.empty)
 
-                StringFragment name ->
-                    let
-                        target =
-                            getAtName name tree |> Maybe.withDefault (Group Dict.empty)
-
-                        childNode =
-                            recursiveSet rest node target
-                    in
-                        merge (Group (Dict.fromList [ ( name, childNode ) ])) tree
+                childNode =
+                    setAtPath rest node target
+            in
+                merge (Group (Dict.fromList [ ( head, childNode ) ])) tree
 
         [] ->
             node
@@ -183,7 +109,7 @@ updateListAtIndex index updater =
         )
 
 
-merge : Tree value -> Tree value -> Tree value
+merge : Tree comparable value -> Tree comparable value -> Tree comparable value
 merge t1 t2 =
     case ( t1, t2 ) of
         ( Group g1, Group g2 ) ->

@@ -1,15 +1,14 @@
-module Form.Input exposing (Input, baseInput, textInput, passwordInput, textArea, checkboxInput, selectInput, radioInput, dumpErrors)
+module Form.Input exposing (baseInput, textInput, passwordInput, textArea, checkboxInput, selectInput, radioInput)
 
 {-|
 @docs Input
 
 @docs baseInput, textInput, passwordInput, textArea, checkboxInput, selectInput, radioInput
 
-@docs dumpErrors
+
 -}
 
 import Maybe exposing (andThen)
-import String
 import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes as HtmlAttr exposing (..)
@@ -18,16 +17,9 @@ import Form exposing (Form, Msg, FieldState, Msg(Input, Focus, Blur), InputType(
 import Form.Field as Field exposing (Field, FieldValue(..))
 
 
-{-| An input renders Html from a field state and list of additional attributes.
-All input functions using this type alias are pre-wired with event handlers.
--}
-type alias Input e a =
-    FieldState e a -> List (Attribute Msg) -> Html Msg
-
-
 {-| Untyped input, first param is `type` attribute.
 -}
-baseInput : String -> (String -> FieldValue) -> InputType -> Input e String
+baseInput : String -> (String -> FieldValue) -> InputType -> FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 baseInput t toFieldValue inputType state attrs =
     let
         formAttrs =
@@ -43,21 +35,21 @@ baseInput t toFieldValue inputType state attrs =
 
 {-| Text input.
 -}
-textInput : Input e String
+textInput : FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 textInput =
     baseInput "text" String Text
 
 
 {-| Password input.
 -}
-passwordInput : Input e String
+passwordInput : FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 passwordInput =
     baseInput "password" String Text
 
 
 {-| Textarea.
 -}
-textArea : Input e String
+textArea : FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 textArea state attrs =
     let
         formAttrs =
@@ -72,7 +64,7 @@ textArea state attrs =
 
 {-| Select input.
 -}
-selectInput : List ( String, String ) -> Input e String
+selectInput : List ( String, String ) -> FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 selectInput options state attrs =
     let
         formAttrs =
@@ -91,7 +83,7 @@ selectInput options state attrs =
 
 {-| Checkbox input.
 -}
-checkboxInput : Input e Bool
+checkboxInput : FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 checkboxInput state attrs =
     let
         formAttrs =
@@ -107,7 +99,7 @@ checkboxInput state attrs =
 
 {-| Radio input.
 -}
-radioInput : String -> Input e String
+radioInput : String -> FieldState comparable e a -> List (Attribute Msg) -> Html Msg
 radioInput value state attrs =
     let
         formAttrs =
@@ -123,17 +115,3 @@ radioInput value state attrs =
             ]
     in
         input (formAttrs ++ attrs) []
-
-
-{-| Dump all form errors in a `<pre>` tag. Useful for debugging.
--}
-dumpErrors : Form e o -> Html msg
-dumpErrors form =
-    let
-        line ( name, error ) =
-            name ++ ": " ++ (toString error)
-
-        content =
-            Form.getErrors form |> List.map line |> String.join "\n"
-    in
-        pre [] [ text content ]

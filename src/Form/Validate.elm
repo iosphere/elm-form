@@ -29,17 +29,17 @@ import Form.Tree as Tree
 
 
 {-| A validation is a function that takes a form field and returns a result
-being either a validation error or the expected object.
+being either a Validation comparable error or the expected object.
 -}
-type alias Validation customError output =
-    Field -> Result (Error customError) output
+type alias Validation comparable customError output =
+    Field comparable -> Result (Error comparable customError) output
 
 
 {-| Map over the result of the validation.
 
     field "myfield" (string |> map String.trim)
 -}
-map : (a -> b) -> Validation e a -> Validation e b
+map : (a -> b) -> Validation comparable e a -> Validation comparable e b
 map f validation field =
     Result.map f (validation field)
 
@@ -48,7 +48,7 @@ map f validation field =
 
     field "myfield" (int |> andThen (minInt 10))
 -}
-andThen : (a -> Validation e b) -> Validation e a -> Validation e b
+andThen : (a -> Validation comparable e b) -> Validation comparable e a -> Validation comparable e b
 andThen callback validation field =
     validation field |> Result.andThen (\next -> (callback next) field)
 
@@ -59,7 +59,7 @@ andThen callback validation field =
       |> andMap (field "foo" string)
       |> andMap (field "bar" string)
 -}
-andMap : Validation e a -> Validation e (a -> b) -> Validation e b
+andMap : Validation comparable e a -> Validation comparable e (a -> b) -> Validation comparable e b
 andMap aValidation partialValidation field =
     case ( partialValidation field, aValidation field ) of
         ( Ok partial, Ok a ) ->
@@ -71,14 +71,14 @@ andMap aValidation partialValidation field =
 
 {-| Rescue a failed validation with the supplied value.
 -}
-defaultValue : a -> Validation e a -> Validation e a
+defaultValue : a -> Validation comparable e a -> Validation comparable e a
 defaultValue a validation field =
     Ok (Result.withDefault a (validation field))
 
 
 {-| Call Result.mapError on validation result.
 -}
-mapError : (Error e1 -> Error e2) -> Validation e1 a -> Validation e2 a
+mapError : (Error comparable e1 -> Error comparable e2) -> Validation comparable e1 a -> Validation comparable e2 a
 mapError f validation =
     \field -> Result.mapError f (validation field)
 
@@ -90,14 +90,14 @@ mapError f validation =
           |> andThen (maxInt 9999)
           |> withCustomError InvalidIdentity)
 -}
-withCustomError : customErr -> Validation e a -> Validation customErr a
+withCustomError : customErr -> Validation comparable e a -> Validation comparable customErr a
 withCustomError =
     mapError << always << customError
 
 
 {-| Helper to create a CustomError.
 -}
-customError : e -> Error e
+customError : e -> Error comparable e
 customError =
     CustomError >> Error.value
 
@@ -106,7 +106,7 @@ customError =
 
     field "name" string
 -}
-field : String -> Validation e a -> Validation e a
+field : comparable -> Validation comparable e a -> Validation comparable e a
 field key validation field =
     Tree.getAtName key field
         |> Maybe.withDefault (Tree.Value EmptyField)
@@ -117,7 +117,7 @@ field key validation field =
 
 {-| Validation a form with two fields.
 -}
-map2 : (a -> b -> m) -> Validation e a -> Validation e b -> Validation e m
+map2 : (a -> b -> m) -> Validation comparable e a -> Validation comparable e b -> Validation comparable e m
 map2 func v1 v2 =
     map func v1
         |> andMap v2
@@ -129,7 +129,7 @@ map2 func v1 v2 =
 
 {-| Validation a form with three fields.
 -}
-map3 : (a -> b -> c -> m) -> Validation e a -> Validation e b -> Validation e c -> Validation e m
+map3 : (a -> b -> c -> m) -> Validation comparable e a -> Validation comparable e b -> Validation comparable e c -> Validation comparable e m
 map3 func v1 v2 v3 =
     map2 func v1 v2
         |> andMap v3
@@ -137,7 +137,7 @@ map3 func v1 v2 v3 =
 
 {-| Validation a form with four fields.
 -}
-map4 : (a -> b -> c -> d -> m) -> Validation e a -> Validation e b -> Validation e c -> Validation e d -> Validation e m
+map4 : (a -> b -> c -> d -> m) -> Validation comparable e a -> Validation comparable e b -> Validation comparable e c -> Validation comparable e d -> Validation comparable e m
 map4 func v1 v2 v3 v4 =
     map3 func v1 v2 v3
         |> andMap v4
@@ -145,7 +145,7 @@ map4 func v1 v2 v3 v4 =
 
 {-| Validation a form with five fields.
 -}
-map5 : (a -> b -> c -> d -> e -> m) -> Validation err a -> Validation err b -> Validation err c -> Validation err d -> Validation err e -> Validation err m
+map5 : (a -> b -> c -> d -> e -> m) -> Validation comparable err a -> Validation comparable err b -> Validation comparable err c -> Validation comparable err d -> Validation comparable err e -> Validation comparable err m
 map5 func v1 v2 v3 v4 v5 =
     map4 func v1 v2 v3 v4
         |> andMap v5
@@ -153,7 +153,7 @@ map5 func v1 v2 v3 v4 v5 =
 
 {-| Validation a form with six fields.
 -}
-map6 : (a -> b -> c -> d -> e -> f -> m) -> Validation err a -> Validation err b -> Validation err c -> Validation err d -> Validation err e -> Validation err f -> Validation err m
+map6 : (a -> b -> c -> d -> e -> f -> m) -> Validation comparable err a -> Validation comparable err b -> Validation comparable err c -> Validation comparable err d -> Validation comparable err e -> Validation comparable err f -> Validation comparable err m
 map6 func v1 v2 v3 v4 v5 v6 =
     map5 func v1 v2 v3 v4 v5
         |> andMap v6
@@ -161,7 +161,7 @@ map6 func v1 v2 v3 v4 v5 v6 =
 
 {-| Validation a form with seven fields.
 -}
-map7 : (a -> b -> c -> d -> e -> f -> g -> m) -> Validation err a -> Validation err b -> Validation err c -> Validation err d -> Validation err e -> Validation err f -> Validation err g -> Validation err m
+map7 : (a -> b -> c -> d -> e -> f -> g -> m) -> Validation comparable err a -> Validation comparable err b -> Validation comparable err c -> Validation comparable err d -> Validation comparable err e -> Validation comparable err f -> Validation comparable err g -> Validation comparable err m
 map7 func v1 v2 v3 v4 v5 v6 v7 =
     map6 func v1 v2 v3 v4 v5 v6
         |> andMap v7
@@ -169,7 +169,7 @@ map7 func v1 v2 v3 v4 v5 v6 v7 =
 
 {-| Validation a form with eight fields.
 -}
-map8 : (a -> b -> c -> d -> e -> f -> g -> h -> m) -> Validation err a -> Validation err b -> Validation err c -> Validation err d -> Validation err e -> Validation err f -> Validation err g -> Validation err h -> Validation err m
+map8 : (a -> b -> c -> d -> e -> f -> g -> h -> m) -> Validation comparable err a -> Validation comparable err b -> Validation comparable err c -> Validation comparable err d -> Validation comparable err e -> Validation comparable err f -> Validation comparable err g -> Validation comparable err h -> Validation comparable err m
 map8 func v1 v2 v3 v4 v5 v6 v7 v8 =
     map7 func v1 v2 v3 v4 v5 v6 v7
         |> andMap v8
@@ -177,7 +177,7 @@ map8 func v1 v2 v3 v4 v5 v6 v7 v8 =
 
 {-| Private
 -}
-mergeMany : List (Maybe (Error e)) -> Error e
+mergeMany : List (Maybe (Error comparable e)) -> Error comparable e
 mergeMany errors =
     errors
         |> List.filterMap identity
@@ -186,7 +186,7 @@ mergeMany errors =
 
 {-| Private
 -}
-groupErrorsUnion : Error e -> Error e -> Error e
+groupErrorsUnion : Error comparable e -> Error comparable e -> Error comparable e
 groupErrorsUnion e1 e2 =
     case ( e1, e2 ) of
         ( Tree.Group g1, Tree.Group g2 ) ->
@@ -210,7 +210,7 @@ errMaybe res =
 
 {-| Validation an integer using `String.toInt`.
 -}
-int : Validation e Int
+int : Validation comparable e Int
 int v =
     case Field.asString v of
         Just s ->
@@ -223,7 +223,7 @@ int v =
 
 {-| Validation a float using `String.toFloat`.
 -}
-float : Validation e Float
+float : Validation comparable e Float
 float v =
     case Field.asString v of
         Just s ->
@@ -236,7 +236,7 @@ float v =
 
 {-| Validation a String.
 -}
-string : Validation e String
+string : Validation comparable e String
 string v =
     case Field.asString v of
         Just s ->
@@ -252,7 +252,7 @@ string v =
 {-| Validate an empty string, otherwise failing with InvalidString.
 Useful with `oneOf` for optional fields with format validation.
 -}
-emptyString : Validation e String
+emptyString : Validation comparable e String
 emptyString v =
     case Field.asString v of
         Just s ->
@@ -267,7 +267,7 @@ emptyString v =
 
 {-| Validation a Bool.
 -}
-bool : Validation e Bool
+bool : Validation comparable e Bool
 bool v =
     case Field.asBool v of
         Just b ->
@@ -279,7 +279,7 @@ bool v =
 
 {-| Validation a Date using `Date.fromString`.
 -}
-date : Validation e Date
+date : Validation comparable e Date
 date v =
     case Field.asString v of
         Just s ->
@@ -292,14 +292,14 @@ date v =
 
 {-| Transform validation result to `Maybe`, using `Result.toMaybe`.
 -}
-maybe : Validation e a -> Validation e (Maybe a)
+maybe : Validation comparable e a -> Validation comparable e (Maybe a)
 maybe validation field =
     Ok (Result.toMaybe (validation field))
 
 
 {-| Fails if `String.isEmpty`.
 -}
-nonEmpty : String -> Validation e String
+nonEmpty : String -> Validation comparable e String
 nonEmpty s field =
     if String.isEmpty s then
         Err (Error.value Empty)
@@ -309,7 +309,7 @@ nonEmpty s field =
 
 {-| Min length for String.
 -}
-minLength : Int -> String -> Validation e String
+minLength : Int -> String -> Validation comparable e String
 minLength min s field =
     if String.length s >= min then
         Ok s
@@ -319,7 +319,7 @@ minLength min s field =
 
 {-| Max length for String.
 -}
-maxLength : Int -> String -> Validation e String
+maxLength : Int -> String -> Validation comparable e String
 maxLength max s field =
     if String.length s <= max then
         Ok s
@@ -329,7 +329,7 @@ maxLength max s field =
 
 {-| Min value for Int.
 -}
-minInt : Int -> Int -> Validation e Int
+minInt : Int -> Int -> Validation comparable e Int
 minInt min i field =
     if i >= min then
         Ok i
@@ -339,7 +339,7 @@ minInt min i field =
 
 {-| Max value for Int.
 -}
-maxInt : Int -> Int -> Validation e Int
+maxInt : Int -> Int -> Validation comparable e Int
 maxInt max i field =
     if i <= max then
         Ok i
@@ -349,7 +349,7 @@ maxInt max i field =
 
 {-| Min value for Float.
 -}
-minFloat : Float -> Float -> Validation e Float
+minFloat : Float -> Float -> Validation comparable e Float
 minFloat min i field =
     if i >= min then
         Ok i
@@ -359,7 +359,7 @@ minFloat min i field =
 
 {-| Max value for Float.
 -}
-maxFloat : Float -> Float -> Validation e Float
+maxFloat : Float -> Float -> Validation comparable e Float
 maxFloat max i field =
     if i <= max then
         Ok i
@@ -369,7 +369,7 @@ maxFloat max i field =
 
 {-| Validates format of the string.
 -}
-format : Regex -> String -> Validation e String
+format : Regex -> String -> Validation comparable e String
 format regex s field =
     if Regex.contains regex s then
         Ok s
@@ -387,7 +387,7 @@ validEmailPattern =
 
 {-| Check if the string is a valid email address.
 -}
-email : Validation e String
+email : Validation comparable e String
 email =
     string
         |> andThen
@@ -405,7 +405,7 @@ validUrlPattern =
 
 {-| Check if the string is a valid URL.
 -}
-url : Validation e String
+url : Validation comparable e String
 url =
     string
         |> andThen
@@ -417,7 +417,7 @@ url =
 
 {-| Check if the string is included in the given list.
 -}
-includedIn : List String -> String -> Validation e String
+includedIn : List String -> String -> Validation comparable e String
 includedIn items s field =
     if List.member s items then
         Ok s
@@ -427,28 +427,28 @@ includedIn items s field =
 
 {-| A validation that always fails. Useful for contextual validation.
 -}
-fail : Error e -> Validation e a
+fail : Error comparable e -> Validation comparable e a
 fail error field =
     Err error
 
 
 {-| A validation that always succeeds. Useful for contextual validation.
 -}
-succeed : a -> Validation e a
+succeed : a -> Validation comparable e a
 succeed a field =
     Ok a
 
 
 {-| Custom validation for your special cases.
 -}
-customValidation : Validation e a -> (a -> Result (Error e) b) -> Validation e b
+customValidation : Validation comparable e a -> (a -> Result (Error comparable e) b) -> Validation comparable e b
 customValidation validation callback field =
     validation field |> Result.andThen callback
 
 
 {-| First successful validation wins, from left to right.
 -}
-oneOf : List (Validation e a) -> Validation e a
+oneOf : List (Validation comparable e a) -> Validation comparable e a
 oneOf validations field =
     let
         results =
@@ -468,14 +468,14 @@ oneOf validations field =
 {-| Combine a list of validations into a validation producing a list of all
 results.
 -}
-sequence : List (Validation e a) -> Validation e (List a)
+sequence : List (Validation comparable e a) -> Validation comparable e (List a)
 sequence validations =
     List.foldr (map2 (::)) (succeed []) validations
 
 
 {-| Validate a list of fields.
 -}
-list : Validation e a -> Validation e (List a)
+list : Validation comparable e a -> Validation comparable e (List a)
 list validation field =
     case field of
         Tree.List items ->

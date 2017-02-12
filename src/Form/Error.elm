@@ -10,8 +10,8 @@ import Form.Tree as Tree exposing (Tree)
 
 {-| Tree of errors.
 -}
-type alias Error e =
-    Tree (ErrorValue e)
+type alias Error comparable e =
+    Tree comparable (ErrorValue e)
 
 
 {-| A validation error. See `Form.Validate.customError` for `CustomError` building.
@@ -38,6 +38,6 @@ type ErrorValue e
 
 {-| Build a tree node (a leaf) for this error
 -}
-value : ErrorValue a -> Error a
-value =
-    Tree.Value
+value : ErrorValue a -> Error comparable a
+value error =
+    Tree.Value error
